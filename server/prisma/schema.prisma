@@ -1,0 +1,138 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  WORKER
+}
+
+enum WorkerType {
+  VIDEO_MAKER
+  PREVIEW_MAKER
+  PUBLISHER
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+model User {
+  id        Int        @id @default(autoincrement())
+  username  String     @unique
+  password  String
+  nickname  String
+  role      Role       @default(WORKER)
+  tabs      String[]   @default([])
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  assignedTasks   Task[]    @relation("AssignedWorker")
+  createdTasks    Task[]    @relation("CreatedBy")
+  stories         Story[]
+  logs            Log[]
+}
+
+model Niche {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  stories   Story[]
+  tasks     Task[]
+}
+
+model Language {
+  id        Int      @id @default(autoincrement())
+  name      String
+  code      String   @unique
+  createdAt DateTime @default(now())
+  stories   Story[]
+}
+
+model Prompt {
+  id          Int      @id @default(autoincrement())
+  name        String
+  type        String
+  content     String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Story {
+  id              Int      @id @default(autoincrement())
+  title           String?
+  content         String
+  nicheId         Int
+  languageId      Int
+  videoPrompts    String?
+  stockKeywords   String?
+  createdById     Int
+  createdAt       DateTime @default(now())
+
+  niche     Niche    @relation(fields: [nicheId], references: [id])
+  language  Language @relation(fields: [languageId], references: [id])
+  createdBy User     @relation(fields: [createdById], references: [id])
+  tasks     Task[]
+}
+
+model Task {
+  id              Int        @id @default(autoincrement())
+  type            WorkerType
+  status          TaskStatus @default(PENDING)
+  storyId         Int?
+  nicheId         Int?
+  channelName     String?
+
+  // Video maker fields
+  videoPrompts    String?
+  stockKeywords   String?
+
+  // Preview maker fields
+  thumbnailText   String?
+  videoDescription String?
+  thumbnailPrompt String?
+  thumbnailUrl    String?
+  videoTitle      String?
+
+  // Publisher fields
+  videoUrl        String?
+  publishedUrl    String?
+  tags            String?
+
+  assignedToId    Int?
+  createdById     Int
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  completedAt     DateTime?
+
+  assignedTo User?  @relation("AssignedWorker", fields: [assignedToId], references: [id])
+  createdBy  User   @relation("CreatedBy", fields: [createdById], references: [id])
+  story      Story? @relation(fields: [storyId], references: [id])
+  niche      Niche? @relation(fields: [nicheId], references: [id])
+}
+
+model Channel {
+  id        Int      @id @default(autoincrement())
+  name      String
+  nicheId   Int
+  url       String?
+  createdAt DateTime @default(now())
+}
+
+model Log {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  action    String
+  details   String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
