@@ -1,0 +1,20 @@
+{
+  "name": "youtube-agent",
+  "version": "1.0.0",
+  "description": "AI YouTube Agent - automated content creation & publishing",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:dashboard\" \"npm run dev:agent\" \"npm run dev:bot\"",
+    "dev:server": "cd server && npm run dev",
+    "dev:dashboard": "cd dashboard && npm run dev",
+    "dev:agent": "cd agent && npm run dev",
+    "dev:bot": "cd bot && npm run dev",
+    "install:all": "npm install && cd server && npm install && cd ../dashboard && npm install && cd ../agent && npm install && cd ../bot && npm install",
+    "db:migrate": "cd server && npx prisma migrate dev",
+    "db:seed": "cd server && npx prisma db seed",
+    "build": "cd dashboard && npm run build"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "youtube-agent-bot",
+  "version": "1.0.0",
+  "description": "Telegram bot for YouTube Agent notifications and control",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "nodemon src/index.js",
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "node-telegram-bot-api": "^0.66.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7"
+  }
+}

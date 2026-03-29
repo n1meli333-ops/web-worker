@@ -1,0 +1,265 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== ENUMS ====================
+
+enum PipelineStatus {
+  PENDING
+  GENERATING_IDEA
+  WRITING_STORY
+  GENERATING_VOICE
+  EXTRACTING_TIMESTAMPS
+  GENERATING_VIDEO_PROMPTS
+  GENERATING_VIDEOS
+  ASSEMBLING_VIDEO
+  GENERATING_THUMBNAIL
+  PUBLISHING
+  COMPLETED
+  FAILED
+  PAUSED
+}
+
+enum VideoStatus {
+  DRAFT
+  PUBLISHED
+  FAILED
+}
+
+enum ProfileType {
+  YOUTUBE
+  CLAUDE
+  FLOW
+  ELEVENLABS
+  ASSEMBLYAI
+  GENERAL
+}
+
+// ==================== CHANNELS ====================
+
+model Channel {
+  id          String   @id @default(cuid())
+  name        String
+  url         String?
+  nicheId     String
+  niche       Niche    @relation(fields: [nicheId], references: [id])
+  languageId  String
+  language    Language @relation(fields: [languageId], references: [id])
+  profileId   String?
+  profile     BrowserProfile? @relation(fields: [profileId], references: [id])
+
+  // Channel settings
+  uploadFrequency   Int      @default(1)  // videos per day
+  videoMinLength    Int      @default(20) // minutes
+  videoMaxLength    Int      @default(40) // minutes
+  isActive          Boolean  @default(true)
+
+  // Prompts specific to this channel
+  storyPromptId         String?
+  storyPrompt           Prompt?  @relation("ChannelStoryPrompt", fields: [storyPromptId], references: [id])
+  videoPromptsPromptId  String?
+  videoPromptsPrompt    Prompt?  @relation("ChannelVideoPromptsPrompt", fields: [videoPromptsPromptId], references: [id])
+  thumbnailPromptId     String?
+  thumbnailPrompt       Prompt?  @relation("ChannelThumbnailPrompt", fields: [thumbnailPromptId], references: [id])
+
+  voiceId     String?
+  voice       Voice?   @relation(fields: [voiceId], references: [id])
+
+  pipelines   Pipeline[]
+  videos      Video[]
+  competitors Competitor[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ==================== NICHES & LANGUAGES ====================
+
+model Niche {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  description String?
+  channels    Channel[]
+  competitors Competitor[]
+  createdAt   DateTime  @default(now())
+}
+
+model Language {
+  id        String    @id @default(cuid())
+  name      String
+  code      String    @unique
+  channels  Channel[]
+  createdAt DateTime  @default(now())
+}
+
+// ==================== BROWSER PROFILES ====================
+
+model BrowserProfile {
+  id          String      @id @default(cuid())
+  name        String
+  type        ProfileType
+  adspowerSerial String   @unique  // AdsPower profile serial number
+  description String?
+  isActive    Boolean     @default(true)
+  channels    Channel[]
+
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+// ==================== PROMPTS ====================
+
+model Prompt {
+  id          String   @id @default(cuid())
+  name        String
+  type        String   // story_generation, video_prompts, thumbnail_prompt, analysis
+  content     String   @db.Text
+  description String?
+  isDefault   Boolean  @default(false)
+
+  channelsStory      Channel[] @relation("ChannelStoryPrompt")
+  channelsVideo      Channel[] @relation("ChannelVideoPromptsPrompt")
+  channelsThumbnail  Channel[] @relation("ChannelThumbnailPrompt")
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ==================== VOICES ====================
+
+model Voice {
+  id          String    @id @default(cuid())
+  name        String
+  elevenLabsId String?  // if using ElevenLabs API
+  sampleUrl   String?
+  language    String?
+  description String?
+  channels    Channel[]
+
+  createdAt   DateTime  @default(now())
+}
+
+// ==================== COMPETITORS ====================
+
+model Competitor {
+  id          String   @id @default(cuid())
+  name        String
+  url         String
+  nicheId     String
+  niche       Niche    @relation(fields: [nicheId], references: [id])
+  channelId   String?
+  channel     Channel? @relation(fields: [channelId], references: [id])
+
+  // Cached analysis data
+  lastAnalyzed DateTime?
+  topTopics    Json?    // [{topic, views, engagement}]
+  avgViews     Int?
+  thumbnailStyle String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ==================== PIPELINE ====================
+
+model Pipeline {
+  id          String         @id @default(cuid())
+  channelId   String
+  channel     Channel        @relation(fields: [channelId], references: [id])
+  status      PipelineStatus @default(PENDING)
+
+  // Step outputs
+  idea        String?        @db.Text
+  story       String?        @db.Text
+  storyTitle  String?
+
+  voiceoverUrl    String?    // path to audio file
+  voiceoverDuration Float?   // seconds
+
+  timestamps  Json?          // [{start, end, text}]
+
+  videoPrompts Json?         // [{promptIndex, prompt, startTime, endTime}]
+  videoFiles   Json?         // [{index, filePath, duration}]
+
+  assembledVideoPath String?
+
+  thumbnailText   String?
+  thumbnailPrompt String?
+  thumbnailPath   String?
+
+  videoTitle       String?
+  videoDescription String?   @db.Text
+  videoTags        String[]
+
+  // Error handling
+  error       String?        @db.Text
+  retryCount  Int            @default(0)
+  currentStep String?
+
+  // Resulting video
+  videoId     String?        @unique
+  video       Video?         @relation(fields: [videoId], references: [id])
+
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+// ==================== VIDEOS ====================
+
+model Video {
+  id          String      @id @default(cuid())
+  channelId   String
+  channel     Channel     @relation(fields: [channelId], references: [id])
+
+  title       String
+  description String?     @db.Text
+  tags        String[]
+
+  videoPath   String?
+  thumbnailPath String?
+
+  youtubeUrl  String?
+  youtubeId   String?
+  status      VideoStatus @default(DRAFT)
+
+  publishedAt DateTime?
+  pipeline    Pipeline?
+
+  // Analytics (from competitor analysis)
+  views       Int?
+  likes       Int?
+
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+// ==================== SETTINGS ====================
+
+model Setting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String @db.Text
+
+  updatedAt DateTime @updatedAt
+}
+
+// ==================== LOGS ====================
+
+model AgentLog {
+  id        String   @id @default(cuid())
+  level     String   // info, warn, error, debug
+  source    String   // pipeline, browser, claude, youtube, etc.
+  message   String   @db.Text
+  details   Json?
+  pipelineId String?
+  channelId  String?
+
+  createdAt DateTime @default(now())
+}

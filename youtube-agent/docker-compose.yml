@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ytagent
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # Redis (for job queue)
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+  # API Server (Dashboard backend)
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3002:3002"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/ytagent
+      PORT: 3002
+      NODE_ENV: production
+    depends_on:
+      - db
+
+  # Agent (Browser automation + Pipeline)
+  agent:
+    build:
+      context: ./agent
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/ytagent
+      REDIS_URL: redis://redis:6379
+      ADSPOWER_URL: ${ADSPOWER_URL:-http://host.docker.internal:50325}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
+      ASSEMBLYAI_API_KEY: ${ASSEMBLYAI_API_KEY}
+      FLOW_SCRIPT_URL: ${FLOW_SCRIPT_URL}
+      ELEVENLABS_SITE_URL: ${ELEVENLABS_SITE_URL}
+      OUTPUT_DIR: /app/output
+      SCHEDULER_CRON: ${SCHEDULER_CRON:-0 */2 * * *}
+    volumes:
+      - agent_output:/app/output
+      - agent_logs:/app/logs
+    depends_on:
+      - db
+      - redis
+
+  # Dashboard (React frontend)
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - server
+
+volumes:
+  postgres_data:
+  agent_output:
+  agent_logs:
