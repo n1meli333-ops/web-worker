@@ -50,11 +50,23 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// Clean empty strings to null for optional foreign keys
+function cleanData(data) {
+  const optionalFKeys = ['voiceId', 'profileId', 'storyPromptId', 'videoPromptsPromptId', 'thumbnailPromptId'];
+  const cleaned = { ...data };
+  for (const key of optionalFKeys) {
+    if (cleaned[key] === '' || cleaned[key] === undefined) {
+      cleaned[key] = null;
+    }
+  }
+  return cleaned;
+}
+
 // Create channel
 router.post('/', async (req, res) => {
   try {
     const channel = await prisma.channel.create({
-      data: req.body,
+      data: cleanData(req.body),
       include: { niche: true, language: true },
     });
     res.status(201).json(channel);
@@ -68,7 +80,7 @@ router.put('/:id', async (req, res) => {
   try {
     const channel = await prisma.channel.update({
       where: { id: req.params.id },
-      data: req.body,
+      data: cleanData(req.body),
       include: { niche: true, language: true, voice: true },
     });
     res.json(channel);
