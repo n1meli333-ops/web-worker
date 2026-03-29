@@ -39,9 +39,11 @@ services:
   # Agent (Browser automation + Pipeline)
   agent:
     build:
-      context: ./agent
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: agent/Dockerfile
     restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/ytagent
       REDIS_URL: redis://redis:6379

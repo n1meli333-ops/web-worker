@@ -10,7 +10,7 @@
  * The telegram bot provides control interface.
  */
 
-const YouTubeAgentBot = require('../../bot/src/index');
+const YouTubeAgentBot = require('../bot/src/index');
 const PipelineScheduler = require('./pipeline/scheduler');
 const logger = require('./utils/logger');
 

@@ -2,23 +2,28 @@ FROM node:20
 
 WORKDIR /app
 
-# Install FFmpeg and dependencies for Playwright
+# Install FFmpeg
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Playwright browsers (Chromium only - we connect to AdsPower via CDP)
-# Note: We don't need full browser install since we connect to AdsPower
-# But keep playwright for the CDP connection library
+# Copy Prisma schema from server (shared DB)
+COPY server/prisma ./prisma/
 
-COPY package*.json ./
+# Copy agent package files
+COPY agent/package*.json ./
 RUN npm install
 
-COPY . .
+# Generate Prisma client
+RUN npx prisma generate
+
+# Copy agent source code
+COPY agent/src ./src/
+
+# Copy bot source (agent imports it)
+COPY bot ./bot/
 
 # Create output and logs directories
 RUN mkdir -p /app/output /app/logs
-
-EXPOSE 3003
 
 CMD ["node", "src/index.js"]
